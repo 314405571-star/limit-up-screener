@@ -1,0 +1,4 @@
+# The core and the tests use the standard library only.
+# Optional, for the demo figures and live data:
+matplotlib>=3.7
+baostock>=0.8.9
