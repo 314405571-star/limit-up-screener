@@ -75,6 +75,8 @@ UNIVERSE = [
     Spec("sh.600017", "一字板", "one_word", 8.0, 10.0, 9.90, 0.0, 3.0e8, seed=17),
     Spec("sh.600018", "无量炸板", "exploded", 8.0, 10.0, 9.90, 0.0, 5.0e6,
          volume=4.5e5, seed=18),
+    Spec("sh.600019", "新高炸板", "exploded", 8.0, 10.0, 10.20, 0.0, 5.0e8,
+         cap=(150.0, 180.0), seed=19),
 ]
 
 
@@ -351,12 +353,29 @@ def main() -> int:
     print_legacy_compare(histories)
     print(f"\n  final list: {', '.join(report.final) or '(empty)'}")
 
+    legacy_final = []
+    for item in report.rows:
+        low = item.checks.get("low_open")
+        if low is not None and low.passed:
+            legacy_final.append(item.code)
+            continue
+        for key in ("high_open_pressure", "weak_to_strong_pressure"):
+            check = item.checks.get(key)
+            if (check is not None and check.passed
+                    and check.metrics.get("pressure_note") != "new_high"):
+                legacy_final.append(item.code)
+                break
+    lost = [code for code in report.final if code not in legacy_final]
+    print(f"  with the notebook's pressure test: {len(legacy_final)}"
+          f"  (dropped: {', '.join(lost) or 'none'})")
+
     row = next(r for r in report.rows if r.code == "sh.600006")
     check = row.checks.get("high_open_pressure")
     print("\n  pressure test on sh.600006 (a new high, no overhead supply):")
-    print("    notebook: idx is None -> rejected")
-    print(f"    here:     {check.metrics.get('pressure_note')} -> "
+    print("    high-open branch: notebook idx is None -> rejected")
+    print(f"    high-open branch: here {check.metrics.get('pressure_note')} -> "
           f"{'pass' if check.passed else 'fail'}")
+    print("    but the low-open branch already has it: the final list is unchanged")
 
     FIG_DIR.mkdir(parents=True, exist_ok=True)
     figures.intraday(FIG_DIR / "intraday_pools.png")

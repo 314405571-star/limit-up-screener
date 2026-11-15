@@ -90,19 +90,19 @@ row.checks["high_open"].reasons   # e.g. ("amount",)
 
 ## What the demo finds
 
-18 synthetic stocks, one session:
+19 synthetic stocks, one session:
 
 ```
-all funds            18
+all funds            19
 no limit window       1      (a STAR listing, day 3)
 no board              3
 continued             2      (yesterday sealed)
 first board           9
-exploded              3
+exploded              4
 low open pass         7
 high open pass        4  →  3 through pressure
-weak-to-strong        1  →  1 through pressure
-final list            8
+weak-to-strong        2  →  2 through pressure
+final list            9      (8 with the notebook's pressure test)
 ```
 
 Given the same data, the notebook classifies **4 of the 18 differently**:
@@ -136,7 +136,7 @@ The notebook's three cells are preserved verbatim in [`legacy/`](legacy/).
 | 3 | No listing window | A STAR stock up 40% in its first week enters the first-board pool | `no_limit` state for the first sessions |
 | 4 | Previous day = "yesterday minus weekends" | On the first session after any holiday the lookup is empty, `prev_limit` is `False`, and **every continuation is filed as a first board** | previous session = the stock's previous bar |
 | 5 | 60-day range includes today | A sealed new-high board puts today's close at the top of its own range: `rp = 0`, the filter can never reject | use the prior 60 bars |
-| 6 | Pressure test: `if idx is None: continue` | **New highs — the cleanest setups — are rejected** for having no overhead supply | pass with `pressure_note="new_high"` |
+| 6 | Pressure test: `if idx is None: continue` | New highs are rejected for having no overhead supply. On first boards the low-open branch masks it; on the **exploded** pool it deletes the strongest names outright | pass with `pressure_note="new_high"` |
 | 7 | `total_cap < 70 or float_cap > 520` | The lower bound and the upper bound measure different things; a 600亿-total / 50亿-float stock passes both | one basis, both bounds (`cap_basis`) |
 | 8 | `close[-1] / close[-3]` labelled "3-day" | Two sessions, not three | four closes |
 
@@ -155,6 +155,45 @@ Each fix has a test named after it:
 
 ---
 
+## A synthetic benchmark — and what it cannot prove
+
+`examples/benchmark.py` draws 4,000 boards from a latent quality `q`: every feature
+the filters read is a noisy function of `q`, and so is tomorrow's outcome. The
+question is whether the filters recover `q` — and whether they invent one when it
+is not there.
+
+![Lift by premium decile](examples/figures/bench_lift.png)
+
+| set | n | continued | lift |
+|---|---:|---:|---:|
+| all boards | 4,000 | 51.1% | — |
+| low open | 1,247 | 60.5% | +9.4 |
+| high open | 88 | 63.6% | +12.5 |
+| high open + pressure | 52 | 69.2% | +18.1 |
+| final list | 1,250 | 60.6% | +9.4 |
+
+In the null world — features independent of `q` — the final list lands at 49.3%
+against a 49.0% base: nothing is manufactured. Over 300 simulated days the
+final-list hit rate beats the base rate on 83% of them.
+
+![Ablation](examples/figures/bench_ablation.png)
+
+![Monte Carlo](examples/figures/bench_monte_carlo.png)
+
+![Response surface](examples/figures/bench_surface.png)
+
+The response surface is the uncomfortable one: `rp_max` moves the hit rate about
+20 points, the pressure multiple moves it 0.3 — the pressure test only touches the
+high-open branch, which is 4% of the final list. That is the same structural point
+as the bug above, seen from the other side.
+
+**What this is not:** a backtest. The generator defines the signal, so the lift
+measures whether the rules recover *that* signal — not whether it exists in the
+A-share market. The honest claim is narrow: the gates point the right way, they do
+not leak, and none of them manufactures an edge from noise.
+
+---
+
 ## Repository layout
 
 ```
@@ -164,13 +203,15 @@ Each fix has a test named after it:
 │   ├── strategies.py         # three filters + pressure test + screen()
 │   └── baostock_source.py    # one history fetch, cache, CLI
 ├── examples/
-│   ├── demo_boards.py        # 18 seeded stocks, funnel, figures
+│   ├── demo_boards.py        # 19 seeded stocks, funnel, figures
 │   ├── figures.py
-│   └── figures/              # four PNGs
+│   ├── benchmark.py          # synthetic signal-recovery benchmark
+│   └── figures/              # eight PNGs
 ├── legacy/                   # V1, V2, V3 — unmodified
 ├── notebooks/打板策略.ipynb
 ├── docs/算法总结.md           # derivations, parameter table, pitfalls (Chinese)
 ├── docs/公众号文章.md         # long-form write-up (Chinese)
+├── docs/benchmark.md         # what the synthetic benchmark can and cannot prove
 ├── tests/
 └── requirements.txt
 ```

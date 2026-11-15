@@ -147,8 +147,10 @@ def funnel(counts: dict, path: Path) -> None:
                (("pool", "in a pool"), ("filter", "passes a filter"), ("final", "final list"))]
     ax.legend(handles=handles, loc="lower right", frameon=False, fontsize=7.8,
               handlelength=1.1, handleheight=0.9)
-    _title(fig, "One day, 18 funds",
-           "12 enter a pool, 8 survive the filters; a fund may pass more than one",
+    in_pool = counts["first_board"] + counts["exploded"]
+    _title(fig, f"One day, {counts['universe']} funds",
+           f"{in_pool} enter a pool, {counts['final']} survive the filters; "
+           f"a fund may pass more than one",
            x=0.065)
     fig.savefig(path, facecolor=SURFACE)
     plt.close(fig)
